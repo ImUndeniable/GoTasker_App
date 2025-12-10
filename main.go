@@ -55,8 +55,8 @@ func main() {
 		q := strings.TrimSpace(r.URL.Query().Get("q"))            // search keyword
 		doneParam := strings.TrimSpace(r.URL.Query().Get("done")) // true or false
 		//Pagination
-		limit := strings.TrimSpace(r.URL.Query().Get("limit")) // get the limit value
-		//offset := strings.TrimSpace(r.URL.Query().Get("offset"))
+		limit := strings.TrimSpace(r.URL.Query().Get("limit"))   // get the limit value
+		offset := strings.TrimSpace(r.URL.Query().Get("offset")) // offset value
 
 		var doneFilter *bool
 		if doneParam != "" {
@@ -80,31 +80,63 @@ func main() {
 			}
 			out = append(out, t)
 		}
-		writeJson(w, http.StatusOK, out)
+		//writeJson(w, http.StatusOK, out)
 
 		//Pagination
 
+		//Limit
+		total := len(out)
+		limitVal := total // default: return all filtered tasks
+		offsetVal := 0    // default: start at 0
+
+		const maxLimit = 100
+
 		if limit != "" {
 			val, err := strconv.Atoi(limit)
-			if err != nil {
+			if err != nil || val <= 0 {
 				writeJson(w, http.StatusBadRequest, map[string]string{"error": "Invalid limit value"})
 				return
 			}
-			for _, t := range tasks {
-				if t.ID == val {
-					writeJson(w, http.StatusOK, val)
-				}
+
+			if val > maxLimit {
+				val = maxLimit
 			}
+			limitVal = val
+
+		}
+
+		// Offset
+		if offset != "" {
+			val, err := strconv.Atoi(offset)
+			if err != nil {
+				writeJson(w, http.StatusBadRequest, map[string]string{"error": "Invalid offset value"})
+				return
+			}
+			offsetVal = val
+		}
+
+		// If Offset is beyond avaialable items, return empty list
+		if offsetVal >= total {
+			writeJson(w, http.StatusOK, []Task{})
 			return
 		}
 
-		//1 Read query parameters - Done
-		//2 Parse done filter if provided - Done
-		//3 Build filtered list - Done
-		//3 a Filter by done = true/fasle if provided - Done
-		//3 b Filter by q in title (case - insensitive) if provided - Done
+		// Compute and index safely
+		end := offsetVal + limitVal
+		if end > total {
+			end = total
+		}
 
+		// Slice and respond
+		paged := out[offsetVal:end]
+		writeJson(w, http.StatusOK, paged)
 	})
+
+	//1 Read query parameters - Done
+	//2 Parse done filter if provided - Done
+	//3 Build filtered list - Done
+	//3 a Filter by done = true/fasle if provided - Done
+	//3 b Filter by q in title (case - insensitive) if provided - Done
 
 	r.Get("/tasks/{id}", func(w http.ResponseWriter, r *http.Request) {
 		idParam := chi.URLParam(r, "id") // get the id from the url
