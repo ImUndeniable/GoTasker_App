@@ -40,6 +40,7 @@ func (w *statusWriter) Write(b []byte) (int, error) {
 	return n, err
 }
 
+// Logging Middleware
 func LoggingMiddleWare(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
@@ -61,6 +62,7 @@ type ctxKey string
 
 const ctxKeyAPIUser ctxKey = "api_user"
 
+// API Key validation
 func validateAPIKey(key string) bool {
 	expected := os.Getenv("GOTASKER_API_KEY")
 	if expected == "" {
@@ -69,6 +71,7 @@ func validateAPIKey(key string) bool {
 	return key == expected
 }
 
+// Auth Middleware
 func AuthMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		apiKey := r.Header.Get("X-API-Key")
