@@ -14,6 +14,13 @@ import (
 )
 
 var tasksMu sync.Mutex
+var startedAt = time.Now()
+
+type HealthResponse struct {
+	Status        string `json:"status"`
+	UptimeSeconds int64  `json:"uptime_seconds"`
+	TasksCount    int    `json:"tasks_count"`
+}
 
 type Task struct {
 	ID        int       `json:"id"`
@@ -48,6 +55,21 @@ func main() {
 	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 		w.Write([]byte("Welcome to GoTasker 🚀"))
+	})
+
+	r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
+		// safely read healths
+		tasksMu.Lock()
+		count := len(tasks)
+		tasksMu.Unlock()
+
+		resp := HealthResponse{
+			Status:        "OK",
+			UptimeSeconds: int64(time.Since(startedAt).Seconds()),
+			TasksCount:    count,
+		}
+
+		writeJson(w, http.StatusOK, resp)
 	})
 
 	r.Get("/tasks", func(w http.ResponseWriter, r *http.Request) {
@@ -108,7 +130,7 @@ func main() {
 		// Offset
 		if offset != "" {
 			val, err := strconv.Atoi(offset)
-			if err != nil {
+			if err != nil || val < 0 {
 				writeJson(w, http.StatusBadRequest, map[string]string{"error": "Invalid offset value"})
 				return
 			}
