@@ -1,0 +1,37 @@
+r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
+		// safely read healths
+		
+	})
+
+
+    r.Get("/tasks", func(w http.ResponseWriter, r *http.Request) {
+		//Filtering Enabled
+
+	})
+
+
+    r.Get("/tasks/{id}", func(w http.ResponseWriter, r *http.Request) {
+		
+
+	})
+
+    // Post /tasks -> create a task
+	r.Post("/tasks", func(w http.ResponseWriter, r *http.Request) {
+
+	})
+
+
+    // PATCH /tasks{id} -> partial update: title and/ or done
+	r.Patch("/tasks/{id}", func(w http.ResponseWriter, r *http.Request) {
+
+	})
+
+    // DELETE /tasks/{id} -> remove a task
+
+	r.Delete("/tasks/{id}", func(w http.ResponseWriter, r *http.Request) {
+
+	})
+
+    r.Get("/", func(w http.ResponseWriter, r *http.Request) {
+
+	})
