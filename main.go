@@ -13,6 +13,10 @@ import (
 
 	"github.com/go-chi/chi"
 	"github.com/go-chi/chi/middleware"
+
+	"database/sql"
+
+	_ "github.com/jackc/pgx/v5/stdlib"
 )
 
 var tasksMu sync.Mutex
@@ -134,6 +138,54 @@ func healthHander(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJson(w, http.StatusOK, resp)
+}
+
+// DB Connection
+func getTasksHandlerDB(db *sql.DB) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		// handler logic here
+		//DB connection
+		userID := int64(1)
+		rows, err := db.Query(`
+    	SELECT id, title, done, created_at, updated_at
+    	FROM tasks
+    	WHERE user_id = $1
+    	ORDER BY created_at DESC`, userID)
+
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		defer rows.Close()
+
+		tasks := make([]Task, 0)
+
+		for rows.Next() {
+			var t Task
+			err := rows.Scan(
+				&t.ID,
+				&t.Title,
+				&t.Done,
+				&t.CreatedAt,
+				&t.UpadtedAt,
+			)
+
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			tasks = append(tasks, t)
+		}
+
+		if err := rows.Err(); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		writeJson(w, http.StatusOK, tasks)
+
+	}
+
 }
 
 func getTasksHander(w http.ResponseWriter, r *http.Request) {
@@ -353,6 +405,22 @@ func deleteTaskHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
+	// DB Connection
+	db, err := sql.Open("pgx", "postgres://gotasker:gotasker@localhost:5432/gotasker?sslmode=disable")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	db.SetMaxOpenConns(25)
+	db.SetMaxIdleConns(25)
+	db.SetConnMaxLifetime(5 * time.Minute)
+
+	if err := db.Ping(); err != nil {
+		log.Fatal("Cannot connect to Database", err)
+	}
+
+	defer db.Close()
+
 	r := chi.NewRouter()
 	r.Use(middleware.RequestID)
 	r.Use(middleware.Logger)
@@ -362,6 +430,7 @@ func main() {
 	r.Use(LoggingMiddleWare)
 
 	// public routes
+	r.Get("/tasksdb", getTasksHandlerDB(db))
 	r.Get("/", welcomeHander)
 	r.Get("/health", healthHander)
 	r.Get("/tasks", getTasksHander)
