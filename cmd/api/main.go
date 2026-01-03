@@ -5,6 +5,8 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/go-chi/cors"
+
 	"github.com/go-chi/chi"
 	"github.com/go-chi/chi/middleware"
 
@@ -33,9 +35,19 @@ func main() {
 	defer db.Close()
 
 	r := chi.NewRouter()
+
 	r.Use(middleware.RequestID)
 	r.Use(middleware.Logger)
 	r.Use(middleware.Recoverer)
+	//CORS - Frontend <-> Backend Conection
+	r.Use(cors.Handler(cors.Options{
+		AllowedOrigins:   []string{"http://localhost:5173"},
+		AllowedMethods:   []string{"GET", "POST", "PATCH", "DELETE", "OPTIONS"},
+		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "X-API-Key"},
+		ExposedHeaders:   []string{"Link"},
+		AllowCredentials: false,
+		MaxAge:           300,
+	}))
 
 	// custom logging for request
 	r.Use(customMiddleware.LoggingMiddleWare)
