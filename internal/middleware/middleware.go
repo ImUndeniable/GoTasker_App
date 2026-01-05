@@ -56,7 +56,7 @@ func validateAPIKey(key string) bool {
 	expected := os.Getenv("GOTASKER_API_KEY")
 	log.Printf("DEBUG → Expected key: [%s], Received key: [%s]", expected, key)
 	if expected == "" {
-		expected = "dev-secet-key"
+		expected = "dev-secret-key"
 	}
 	return key == expected
 }
