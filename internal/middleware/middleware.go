@@ -1,11 +1,8 @@
 package middleware
 
 import (
-	"context"
-	"encoding/json"
 	"log"
 	"net/http"
-	"os"
 	"time"
 )
 
@@ -43,34 +40,5 @@ func LoggingMiddleWare(next http.Handler) http.Handler {
 			status = http.StatusOK
 		}
 		log.Printf("%s %s %s %d %dB %s", r.Method, r.URL.Path, ip, status, sw.size, latency)
-	})
-}
-
-// --- Auth Logic ---
-
-type ctxKey string
-
-const CtxKeyAPIUser ctxKey = "api_user"
-
-func validateAPIKey(key string) bool {
-	expected := os.Getenv("GOTASKER_API_KEY")
-	log.Printf("DEBUG → Expected key: [%s], Received key: [%s]", expected, key)
-	if expected == "" {
-		expected = "dev-secret-key"
-	}
-	return key == expected
-}
-
-func AuthMiddleware(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		apiKey := r.Header.Get("X-API-Key")
-		if apiKey == "" || !validateAPIKey(apiKey) {
-			w.Header().Set("Content-Type", "application/json")
-			w.WriteHeader(http.StatusUnauthorized)
-			json.NewEncoder(w).Encode(map[string]string{"error": "Unauthorized Key"})
-			return
-		}
-		ctx := context.WithValue(r.Context(), CtxKeyAPIUser, "api-key-user")
-		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }

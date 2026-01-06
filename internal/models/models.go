@@ -25,3 +25,24 @@ type UpdateTaskRequest struct {
 	Title *string `json:"title,omitempty"`
 	Done  *bool   `json:"done,omitempty"`
 }
+
+type RegisterRequest struct {
+	Email    string `json:"email"`
+	Password string `json:"password"`
+}
+
+type UserResponse struct {
+	ID    int64  `json:"id"`
+	Email string `json:"email"`
+}
+
+type LoginRequest struct {
+	Email    string `json:"email"`
+	Password string `json:"password"`
+}
+
+type LoginAuth struct {
+	ID           int64
+	Email        string
+	PasswordHash string
+}

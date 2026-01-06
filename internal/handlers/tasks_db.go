@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 
+	"gotasker/internal/auth"
 	"gotasker/internal/models"
 
 	"github.com/go-chi/chi"
@@ -14,7 +15,17 @@ import (
 
 func GetTasksHandlerDB(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		userID := int64(1)
+		userIDVal := r.Context().Value(auth.UserIDContextKey)
+		if userIDVal == nil {
+			http.Error(w, "unauthorized", http.StatusUnauthorized)
+			return
+		}
+
+		userID, ok := userIDVal.(int64)
+		if !ok {
+			http.Error(w, "unauthorized", http.StatusUnauthorized)
+			return
+		}
 		rows, err := db.Query(`
 			SELECT id, title, done, created_at, updated_at
 			FROM tasks
@@ -63,7 +74,17 @@ func GetTaskbyIDHandlerDB(db *sql.DB) http.HandlerFunc {
 			return
 		}
 
-		userID := int64(1)
+		userIDVal := r.Context().Value(auth.UserIDContextKey)
+		if userIDVal == nil {
+			http.Error(w, "unauthorized", http.StatusUnauthorized)
+			return
+		}
+
+		userID, ok := userIDVal.(int64)
+		if !ok {
+			http.Error(w, "unauthorized", http.StatusUnauthorized)
+			return
+		}
 		rows, err := db.Query(`
 			SELECT id, title, done, created_at, updated_at
 			FROM tasks
@@ -110,7 +131,17 @@ func CreateTaskHandlerDB(db *sql.DB) http.HandlerFunc {
 			return
 		}
 
-		userID := int64(1)
+		userIDVal := r.Context().Value(auth.UserIDContextKey)
+		if userIDVal == nil {
+			http.Error(w, "unauthorized", http.StatusUnauthorized)
+			return
+		}
+
+		userID, ok := userIDVal.(int64)
+		if !ok {
+			http.Error(w, "unauthorized", http.StatusUnauthorized)
+			return
+		}
 		var task models.Task
 
 		err := db.QueryRow(`
@@ -156,7 +187,17 @@ func PatchTaskHandlerDB(db *sql.DB) http.HandlerFunc {
 
 		//DB logic
 
-		userID := int64(1)
+		userIDVal := r.Context().Value(auth.UserIDContextKey)
+		if userIDVal == nil {
+			http.Error(w, "unauthorized", http.StatusUnauthorized)
+			return
+		}
+
+		userID, ok := userIDVal.(int64)
+		if !ok {
+			http.Error(w, "unauthorized", http.StatusUnauthorized)
+			return
+		}
 		row, err := db.Query(`
 			UPDATE tasks SET
             title = COALESCE($1, title),
@@ -204,7 +245,17 @@ func DeleteTaskHandlerDB(db *sql.DB) http.HandlerFunc {
 			return
 		}
 
-		userID := int64(1)
+		userIDVal := r.Context().Value(auth.UserIDContextKey)
+		if userIDVal == nil {
+			http.Error(w, "unauthorized", http.StatusUnauthorized)
+			return
+		}
+
+		userID, ok := userIDVal.(int64)
+		if !ok {
+			http.Error(w, "unauthorized", http.StatusUnauthorized)
+			return
+		}
 		//var task models.Task
 		res, err := db.Exec(`DELETE FROM tasks
                WHERE id = $1

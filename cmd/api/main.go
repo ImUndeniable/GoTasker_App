@@ -10,6 +10,7 @@ import (
 	"github.com/go-chi/chi"
 	"github.com/go-chi/chi/middleware"
 
+	"gotasker/internal/auth"
 	"gotasker/internal/handlers"
 	customMiddleware "gotasker/internal/middleware"
 
@@ -53,22 +54,25 @@ func main() {
 	r.Use(customMiddleware.LoggingMiddleWare)
 
 	// public routes
-	r.Get("/tasksdb", handlers.GetTasksHandlerDB(db))
-	r.Get("/tasksdb/{id}", handlers.GetTaskbyIDHandlerDB(db))
-	r.Get("/", handlers.WelcomeHandler)
+
 	r.Get("/health", handlers.HealthHandler)
 	r.Get("/tasks", handlers.GetTasksHandler)
-	r.Get("/tasks/{id}", handlers.GetTaskByIDHandler)
+	r.Post("/register", handlers.RegisterHandler(db))
+	r.Post("/login", handlers.LoginHandler(db))
 
 	// protected routes group
 	r.Group(func(r chi.Router) {
-		r.Use(customMiddleware.AuthMiddleware)
+		r.Use(auth.JWTMiddleware)
+		r.Get("/tasksdb", handlers.GetTasksHandlerDB(db))
+		r.Get("/tasksdb/{id}", handlers.GetTaskbyIDHandlerDB(db))
 		r.Post("/tasksdb", handlers.CreateTaskHandlerDB(db))
 		r.Patch("/tasksdb/{id}", handlers.PatchTaskHandlerDB(db))
+		r.Delete("/tasksdb/{id}", handlers.DeleteTaskHandlerDB(db))
+		r.Get("/tasks/{id}", handlers.GetTaskByIDHandler)
 		r.Post("/tasks", handlers.CreateTaskHandler)
 		r.Patch("/tasks/{id}", handlers.PatchTaskHandler)
 		r.Delete("/tasks/{id}", handlers.DeleteTaskHandler)
-		r.Delete("/tasksdb/{id}", handlers.DeleteTaskHandlerDB(db))
+
 	})
 
 	// Health Checkup of the API
