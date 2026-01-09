@@ -97,18 +97,18 @@ CREATE TABLE tasks (
 
 ## 🔌 API Endpoints
 **All Tasks endpoints require the Authorization header.**
-Method,Endpoint,Description,Auth
-POST,/register,Register a new user,❌
-POST,/login,Authenticate and receive JWT,❌
-GET,/tasksdb,Get all tasks for logged-in user,✅
-POST,/tasksdb,Create a new task,✅
-PATCH,/tasksdb/{id},Update task status/title,✅
-DELETE,/tasksdb/{id},Delete a specific task,✅
+* Method,Endpoint,Description,Auth
+* POST,/register,Register a new user,❌
+* POST,/login,Authenticate and receive JWT,❌
+* GET,/tasksdb,Get all tasks for logged-in user,✅
+* POST,/tasksdb,Create a new task,✅
+* PATCH,/tasksdb/{id},Update task status/title,✅
+* DELETE,/tasksdb/{id},Delete a specific task,✅
 
 ## 🛠️ Setup & Installation
 **1. Clone the Repository**
-git clone https://github.com/ImUndeniable/GoTasker_App.git
-cd GoTasker_App
+* git clone https://github.com/ImUndeniable/GoTasker_App.git
+* cd GoTasker_App
 
 **2. Start PostgreSQL (via Docker)**
 docker run -d \
