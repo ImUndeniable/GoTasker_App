@@ -68,14 +68,15 @@ gotasker/
 
 ## 🧠 Authentication Flow
 
-**Sign Up:** User sends Email + Password → Password hashed via bcrypt → Saved to DB.
-**Login:** User sends credentials → Hash compared → Server signs a JWT.
-**Access:** Client sends Authorization: Bearer <token> in headers.
-**Validation:** Middleware validates the token, extracts user_id, and injects it into the Request Context.
-**Execution:** Handlers retrieve user_id from context to execute isolated queries.
+* **Sign Up:** User sends Email + Password → Password hashed via bcrypt → Saved to DB.
+* **Login:** User sends credentials → Hash compared → Server signs a JWT.
+* **Access:** Client sends Authorization: Bearer <token> in headers.
+* **Validation:** Middleware validates the token, extracts user_id, and injects it into the Request Context.
+* **Execution:** Handlers retrieve user_id from context to execute isolated queries.
 
 ## 🗃️ Database Schema
-Users Table
+
+* **Users Table**
 CREATE TABLE users (
     id BIGSERIAL PRIMARY KEY,
     email TEXT NOT NULL UNIQUE,
@@ -83,7 +84,8 @@ CREATE TABLE users (
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
-Tasks Table
+
+* **Tasks Table**
 CREATE TABLE tasks (
     id BIGSERIAL PRIMARY KEY,
     user_id BIGINT NOT NULL REFERENCES users(id),
