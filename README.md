@@ -105,7 +105,7 @@ DELETE,/tasksdb/{id},Delete a specific task,✅
 
 ## 🛠️ Setup & Installation
 **1. Clone the Repository**
-git clone [https://github.com/](https://github.com/)<your-username>/gotasker.git
+git clone [https://github.com/](https://github.com/)<ImUndeniable>/gotasker.git
 cd gotasker
 
 **2. Start PostgreSQL (via Docker)**
