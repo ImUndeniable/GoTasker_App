@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/go-chi/cors"
+	"github.com/redis/go-redis/v9"
 
 	"github.com/go-chi/chi"
 	"github.com/go-chi/chi/middleware"
@@ -13,11 +14,14 @@ import (
 	"gotasker/internal/auth"
 	"gotasker/internal/handlers"
 	customMiddleware "gotasker/internal/middleware"
+	internalRedis "gotasker/internal/redis"
 
 	"database/sql"
 
 	_ "github.com/jackc/pgx/v5/stdlib"
 )
+
+var redisClient *redis.Client
 
 func main() {
 	// DB Connection
@@ -34,6 +38,13 @@ func main() {
 		log.Fatal("Cannot connect to Database", err)
 	}
 	defer db.Close()
+
+	//Redis
+	redisClient, err = internalRedis.InitRedis()
+	if err != nil {
+		log.Printf("Redis unavailable, continuing without cache: %v", err)
+		redisClient = nil
+	}
 
 	r := chi.NewRouter()
 
@@ -63,11 +74,11 @@ func main() {
 	// protected routes group
 	r.Group(func(r chi.Router) {
 		r.Use(auth.JWTMiddleware)
-		r.Get("/tasksdb", handlers.GetTasksHandlerDB(db))
+		r.Get("/tasksdb", handlers.GetTasksHandlerDB(db, redisClient))
 		r.Get("/tasksdb/{id}", handlers.GetTaskbyIDHandlerDB(db))
-		r.Post("/tasksdb", handlers.CreateTaskHandlerDB(db))
-		r.Patch("/tasksdb/{id}", handlers.PatchTaskHandlerDB(db))
-		r.Delete("/tasksdb/{id}", handlers.DeleteTaskHandlerDB(db))
+		r.Post("/tasksdb", handlers.CreateTaskHandlerDB(db, redisClient))
+		r.Patch("/tasksdb/{id}", handlers.PatchTaskHandlerDB(db, redisClient))
+		r.Delete("/tasksdb/{id}", handlers.DeleteTaskHandlerDB(db, redisClient))
 		r.Get("/tasks/{id}", handlers.GetTaskByIDHandler)
 		r.Post("/tasks", handlers.CreateTaskHandler)
 		r.Patch("/tasks/{id}", handlers.PatchTaskHandler)
