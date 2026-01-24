@@ -3,6 +3,7 @@ package handlers
 import (
 	"database/sql"
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 	"strconv"
@@ -19,43 +20,99 @@ import (
 func GetTasksHandlerDB(db *sql.DB, rdb *redis.Client) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 
-		// 1. Extract userID from JWT context
+		// ── 1. Read query params ─────────────────────────────
+		q := strings.TrimSpace(r.URL.Query().Get("q"))
+		doneParam := strings.TrimSpace(r.URL.Query().Get("done"))
+		limitParam := strings.TrimSpace(r.URL.Query().Get("limit"))
+		offsetParam := strings.TrimSpace(r.URL.Query().Get("offset"))
+
+		hasQueryParams := q != "" || doneParam != "" || limitParam != "" || offsetParam != ""
+
+		// ── 2. Extract userID from JWT context ───────────────
 		userIDVal := r.Context().Value(auth.UserIDContextKey)
 		if userIDVal == nil {
 			http.Error(w, "unauthorized", http.StatusUnauthorized)
 			return
 		}
 
-		userID, ok := userIDVal.(int64)
-		if !ok {
-			http.Error(w, "unauthorized", http.StatusUnauthorized)
-			return
-		}
-
+		userID := userIDVal.(int64)
 		ctx := r.Context()
 
-		// 2. Try Redis cache first
-		if tasks, hit, err := cache.GetTasks(ctx, rdb, userID); err == nil && hit {
-			log.Println("Redis cache HIT")
-			WriteJson(w, http.StatusOK, tasks)
-			return
+		// ── 3. Redis ONLY if no query params ─────────────────
+		if !hasQueryParams {
+			if tasks, hit, err := cache.GetTasks(ctx, rdb, userID); err == nil && hit {
+				log.Println("Redis cache HIT")
+				WriteJson(w, http.StatusOK, tasks)
+				return
+			}
+			log.Println("Redis cache MISS")
 		}
-		log.Println("Redis cache MISS")
 
-		// 3. Query DB
-		rows, err := db.Query(`
+		// ── 4. Build filters ─────────────────────────────────
+		var (
+			args   []any
+			where  = "WHERE user_id = $1"
+			argPos = 2
+		)
+		args = append(args, userID)
+
+		if doneParam != "" {
+			val, err := strconv.ParseBool(doneParam)
+			if err != nil {
+				WriteJson(w, http.StatusBadRequest, map[string]string{"error": "invalid done param"})
+				return
+			}
+			where += fmt.Sprintf(" AND done = $%d", argPos)
+			args = append(args, val)
+			argPos++
+		}
+
+		if q != "" {
+			where += fmt.Sprintf(" AND LOWER(title) LIKE $%d", argPos)
+			args = append(args, "%"+strings.ToLower(q)+"%")
+			argPos++
+		}
+
+		// ── 5. Pagination ────────────────────────────────────
+		limit := 20
+		offset := 0
+
+		if limitParam != "" {
+			val, err := strconv.Atoi(limitParam)
+			if err != nil || val <= 0 || val > 100 {
+				WriteJson(w, http.StatusBadRequest, map[string]string{"error": "invalid limit"})
+				return
+			}
+			limit = val
+		}
+
+		if offsetParam != "" {
+			val, err := strconv.Atoi(offsetParam)
+			if err != nil || val < 0 {
+				WriteJson(w, http.StatusBadRequest, map[string]string{"error": "invalid offset"})
+				return
+			}
+			offset = val
+		}
+
+		args = append(args, limit, offset)
+
+		query := fmt.Sprintf(`
 			SELECT id, title, done, created_at, updated_at
 			FROM tasks
-			WHERE user_id = $1
+			%s
 			ORDER BY created_at DESC
-		`, userID)
+			LIMIT $%d OFFSET $%d
+		`, where, argPos, argPos+1)
+
+		// ── 6. DB query ──────────────────────────────────────
+		rows, err := db.Query(query, args...)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
 		defer rows.Close()
 
-		// 4. Build tasks slice
 		tasks := make([]models.Task, 0)
 
 		for rows.Next() {
@@ -73,17 +130,13 @@ func GetTasksHandlerDB(db *sql.DB, rdb *redis.Client) http.HandlerFunc {
 			tasks = append(tasks, t)
 		}
 
-		if err := rows.Err(); err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
+		// ── 7. Cache ONLY full list ──────────────────────────
+		if !hasQueryParams {
+			if err := cache.SetTasks(ctx, rdb, userID, tasks); err != nil {
+				log.Printf("Redis SET failed: %v", err)
+			}
 		}
 
-		// 5. Store result in Redis
-		if err := cache.SetTasks(ctx, rdb, userID, tasks); err != nil {
-			log.Printf("Redis SET failed: %v", err)
-		}
-
-		// 6. Return response ONCE
 		WriteJson(w, http.StatusOK, tasks)
 	}
 }
