@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 
+	"gotasker/internal/ai"
 	"gotasker/internal/auth"
 	"gotasker/internal/models"
 	cache "gotasker/internal/redis"
@@ -98,7 +99,7 @@ func GetTasksHandlerDB(db *sql.DB, rdb *redis.Client) http.HandlerFunc {
 		args = append(args, limit, offset)
 
 		query := fmt.Sprintf(`
-			SELECT id, title, done, created_at, updated_at
+			SELECT id, title, done, ai_summary, created_at, updated_at
 			FROM tasks
 			%s
 			ORDER BY created_at DESC
@@ -121,6 +122,7 @@ func GetTasksHandlerDB(db *sql.DB, rdb *redis.Client) http.HandlerFunc {
 				&t.ID,
 				&t.Title,
 				&t.Done,
+				&t.AiSummary,
 				&t.CreatedAt,
 				&t.UpdatedAt,
 			); err != nil {
@@ -194,7 +196,7 @@ func GetTaskbyIDHandlerDB(db *sql.DB) http.HandlerFunc {
 	}
 }
 
-func CreateTaskHandlerDB(db *sql.DB, rdb *redis.Client) http.HandlerFunc {
+func CreateTaskHandlerDB(db *sql.DB, rdb *redis.Client, aiWorker *ai.Worker) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var req models.CreateTaskRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -220,13 +222,21 @@ func CreateTaskHandlerDB(db *sql.DB, rdb *redis.Client) http.HandlerFunc {
 		}
 		var task models.Task
 
+		//Using Redis to delete the data
+		ctx := r.Context()
+
+		// Generate AI summary before insert (using a temp task with just the title)
+		tempTask := models.Task{Title: req.Title, Done: req.Done}
+		summary := aiWorker.AnalyzeTask(ctx, tempTask, 0, 0)
+
 		err := db.QueryRow(`
-			INSERT INTO tasks (user_id, title, done)
-			VALUES ($1, $2, $3)
-			RETURNING id, title, done, created_at, updated_at`, userID, req.Title, req.Done).Scan(
+			INSERT INTO tasks (user_id, title, done, ai_summary)
+			VALUES ($1, $2, $3, $4)
+			RETURNING id, title, done, ai_summary, created_at, updated_at`, userID, req.Title, req.Done, summary).Scan(
 			&task.ID,
 			&task.Title,
 			&task.Done,
+			&task.AiSummary,
 			&task.CreatedAt,
 			&task.UpdatedAt,
 		)
@@ -237,9 +247,6 @@ func CreateTaskHandlerDB(db *sql.DB, rdb *redis.Client) http.HandlerFunc {
 			})
 			return
 		}
-
-		//Using Redis to delete the data
-		ctx := r.Context()
 
 		if err := cache.DeletTaks(ctx, rdb, userID); err != nil {
 			log.Printf("Redis DEL failed: %v", err)

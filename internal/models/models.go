@@ -14,6 +14,7 @@ type Task struct {
 	Done      bool      `json:"done"`
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at,omitempty"`
+	AiSummary *string   `json:"ai_summary"`
 }
 
 type CreateTaskRequest struct {

@@ -11,6 +11,7 @@ import (
 	"github.com/go-chi/chi"
 	"github.com/go-chi/chi/middleware"
 
+	"gotasker/internal/ai"
 	"gotasker/internal/auth"
 	"gotasker/internal/handlers"
 	customMiddleware "gotasker/internal/middleware"
@@ -46,6 +47,10 @@ func main() {
 		redisClient = nil
 	}
 
+	// AI Service
+	aiService := ai.NewOpenAIService()
+	aiWorker := ai.NewWorker(db, aiService)
+
 	r := chi.NewRouter()
 
 	r.Use(middleware.RequestID)
@@ -53,7 +58,7 @@ func main() {
 	r.Use(middleware.Recoverer)
 	//CORS - Frontend <-> Backend Conection
 	r.Use(cors.Handler(cors.Options{
-		AllowedOrigins:   []string{"http://localhost:5173"},
+		AllowedOrigins:   []string{"http://localhost:5175"},
 		AllowedMethods:   []string{"GET", "POST", "PATCH", "DELETE", "OPTIONS"},
 		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "X-API-Key"},
 		ExposedHeaders:   []string{"Link"},
@@ -76,7 +81,7 @@ func main() {
 		r.Use(auth.JWTMiddleware)
 		r.Get("/tasksdb", handlers.GetTasksHandlerDB(db, redisClient))
 		r.Get("/tasksdb/{id}", handlers.GetTaskbyIDHandlerDB(db))
-		r.Post("/tasksdb", handlers.CreateTaskHandlerDB(db, redisClient))
+		r.Post("/tasksdb", handlers.CreateTaskHandlerDB(db, redisClient, aiWorker))
 		r.Patch("/tasksdb/{id}", handlers.PatchTaskHandlerDB(db, redisClient))
 		r.Delete("/tasksdb/{id}", handlers.DeleteTaskHandlerDB(db, redisClient))
 		r.Get("/tasks/{id}", handlers.GetTaskByIDHandler)
