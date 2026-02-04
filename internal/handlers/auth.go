@@ -105,7 +105,7 @@ func LoginHandler(db *sql.DB) http.HandlerFunc {
 
 		if err != nil {
 			WriteJson(w, http.StatusUnauthorized, map[string]string{
-				"error": "invalid credentials",
+				"error": "invalid email",
 			})
 			return
 
